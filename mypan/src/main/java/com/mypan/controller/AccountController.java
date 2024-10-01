@@ -1,13 +1,23 @@
 package com.mypan.controller;
 
+import com.mypan.entity.constants.Constants;
+import com.mypan.entity.dto.CreateImageCode;
 import com.mypan.entity.po.UserInfo;
 import com.mypan.entity.query.UserInfoQuery;
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+
+import com.mypan.exception.BusinessException;
+import com.mypan.service.EmailCodeService;
 import com.mypan.service.UserInfoService;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import com.mypan.entity.vo.ResponseVO;
+
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -15,150 +25,40 @@ import java.util.List;
  * @Author: 张鑫
  * @Date: 2024/09/30
 */
-@RestController
-@RequestMapping("userInfo")
+@RestController("userInfoController")
 public class AccountController extends ABaseController {
 
 	@Resource
 	private UserInfoService userInfoService;
 
-	@RequestMapping("loadDataList")
-	public ResponseVO loadDataList(UserInfoQuery query) {
-		return getSuccessResponseVO(userInfoService.findListByPage(query));
+	@Resource
+	private EmailCodeService emailCodeService;
+
+	@RequestMapping("/checkCode")
+	public void checkCode(HttpServletResponse response, HttpSession session,Integer type) throws IOException {
+		CreateImageCode vCode=new CreateImageCode(130,38,5,10);
+		response.setHeader("Pragma","no-cache");
+		response.setHeader("Cache-Control","no-cache");
+		response.setDateHeader("Expires",0);
+		response.setContentType("image/jpeg");
+		String code=vCode.getCode();
+		if(type==null || type==0){
+			session.setAttribute(Constants.check_code_key,code);
+		}else{
+			session.setAttribute(Constants.check_code_key_email,code);
+		}
+		vCode.write(response.getOutputStream());
 	}
-/**
- *新增
-*/
-
-	@RequestMapping("add")
-	public ResponseVO add(UserInfo bean) {
-		this.userInfoService.add(bean);
-		return getSuccessResponseVO(null);
-	}
-/**
- *批量新增
-*/
-
-	@RequestMapping("addBatch")
-	public ResponseVO addBatch(@RequestBody List<UserInfo> listBean) {
-		this.userInfoService.addBatch(listBean);
-		return getSuccessResponseVO(null);
-	}
-/**
- *批量新增或修改
-*/
-
-	@RequestMapping("addOrUpdateBatch")
-	public ResponseVO addOrUpdateBatch(@RequestBody List<UserInfo> listBean) {
-		this.userInfoService.addOrUpdateBatch(listBean);
-		return getSuccessResponseVO(null);
-	}
-
-/**
- *根据UserId查询
-*/
-
-	@RequestMapping("getUserInfoByUserId")
-	public ResponseVO getUserInfoByUserId(String userId) {
-		return getSuccessResponseVO(this.userInfoService.getUserInfoByUserId(userId));
-	}
-/**
- *根据UserId更新
-*/
-
-	@RequestMapping("updateUserInfoByUserId")
-	public ResponseVO updateUserInfoByUserId( UserInfo bean , String userId) {
-		this.userInfoService.updateUserInfoByUserId(bean,userId);
-		return getSuccessResponseVO(null);
-	}
-
-/**
- *根据UserId删除
-*/
-	@RequestMapping("deleteUserInfoByUserId")
-	public ResponseVO deleteUserInfoByUserId(String userId) {
-		this.userInfoService.deleteUserInfoByUserId(userId);
-		return getSuccessResponseVO(null);
-	}
-
-/**
- *根据Email查询
-*/
-
-	@RequestMapping("getUserInfoByEmail")
-	public ResponseVO getUserInfoByEmail(String email) {
-		return getSuccessResponseVO(this.userInfoService.getUserInfoByEmail(email));
-	}
-/**
- *根据Email更新
-*/
-
-	@RequestMapping("updateUserInfoByEmail")
-	public ResponseVO updateUserInfoByEmail( UserInfo bean , String email) {
-		this.userInfoService.updateUserInfoByEmail(bean,email);
-		return getSuccessResponseVO(null);
-	}
-
-/**
- *根据Email删除
-*/
-	@RequestMapping("deleteUserInfoByEmail")
-	public ResponseVO deleteUserInfoByEmail(String email) {
-		this.userInfoService.deleteUserInfoByEmail(email);
-		return getSuccessResponseVO(null);
-	}
-
-/**
- *根据QqOpenId查询
-*/
-
-	@RequestMapping("getUserInfoByQqOpenId")
-	public ResponseVO getUserInfoByQqOpenId(String qqOpenId) {
-		return getSuccessResponseVO(this.userInfoService.getUserInfoByQqOpenId(qqOpenId));
-	}
-/**
- *根据QqOpenId更新
-*/
-
-	@RequestMapping("updateUserInfoByQqOpenId")
-	public ResponseVO updateUserInfoByQqOpenId( UserInfo bean , String qqOpenId) {
-		this.userInfoService.updateUserInfoByQqOpenId(bean,qqOpenId);
-		return getSuccessResponseVO(null);
-	}
-
-/**
- *根据QqOpenId删除
-*/
-	@RequestMapping("deleteUserInfoByQqOpenId")
-	public ResponseVO deleteUserInfoByQqOpenId(String qqOpenId) {
-		this.userInfoService.deleteUserInfoByQqOpenId(qqOpenId);
-		return getSuccessResponseVO(null);
-	}
-
-/**
- *根据NickName查询
-*/
-
-	@RequestMapping("getUserInfoByNickName")
-	public ResponseVO getUserInfoByNickName(String nickName) {
-		return getSuccessResponseVO(this.userInfoService.getUserInfoByNickName(nickName));
-	}
-/**
- *根据NickName更新
-*/
-
-	@RequestMapping("updateUserInfoByNickName")
-	public ResponseVO updateUserInfoByNickName( UserInfo bean , String nickName) {
-		this.userInfoService.updateUserInfoByNickName(bean,nickName);
-		return getSuccessResponseVO(null);
-	}
-
-/**
- *根据NickName删除
-*/
-	@RequestMapping("deleteUserInfoByNickName")
-	public ResponseVO deleteUserInfoByNickName(String nickName) {
-		this.userInfoService.deleteUserInfoByNickName(nickName);
-		return getSuccessResponseVO(null);
+	@RequestMapping("/sendEmailCode")
+	public ResponseVO sendEmailCode(HttpSession session,String email,String checkCode,Integer type) throws BusinessException {
+		try {
+			if(!checkCode.equalsIgnoreCase((String)session.getAttribute(Constants.check_code_key_email))){
+				throw new BusinessException("图片验证码不正确");
+			}
+			emailCodeService.sendEmailCode(email,type);
+			return getSuccessResponseVO(null);
+		}finally {
+			session.removeAttribute(Constants.check_code_key_email);
+		}
 	}
 }
