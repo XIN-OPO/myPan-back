@@ -1,7 +1,10 @@
 package com.mypan.controller;
 
+import com.mypan.annotation.GlobalInterceptor;
+import com.mypan.annotation.VerifyParam;
 import com.mypan.entity.constants.Constants;
 import com.mypan.entity.dto.CreateImageCode;
+import com.mypan.entity.dto.SessionWebUserDto;
 import com.mypan.entity.po.UserInfo;
 import com.mypan.entity.query.UserInfoQuery;
 import javax.annotation.Resource;
@@ -9,6 +12,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+import com.mypan.enums.VerifyRegexEnum;
 import com.mypan.exception.BusinessException;
 import com.mypan.service.EmailCodeService;
 import com.mypan.service.UserInfoService;
@@ -50,7 +54,10 @@ public class AccountController extends ABaseController {
 		vCode.write(response.getOutputStream());
 	}
 	@RequestMapping("/sendEmailCode")
-	public ResponseVO sendEmailCode(HttpSession session,String email,String checkCode,Integer type) throws BusinessException {
+	@GlobalInterceptor(checkParams = true)
+	public ResponseVO sendEmailCode(HttpSession session,@VerifyParam(required = true) String email,
+									@VerifyParam(required = true) String checkCode,
+									@VerifyParam(required = true) Integer type) throws BusinessException {
 		try {
 			if(!checkCode.equalsIgnoreCase((String)session.getAttribute(Constants.check_code_key_email))){
 				throw new BusinessException("图片验证码不正确");
@@ -59,6 +66,43 @@ public class AccountController extends ABaseController {
 			return getSuccessResponseVO(null);
 		}finally {
 			session.removeAttribute(Constants.check_code_key_email);
+		}
+	}
+
+	@RequestMapping("/register")
+	@GlobalInterceptor(checkParams = true)
+	public ResponseVO register(HttpSession session,
+							   @VerifyParam(required = true,regex = VerifyRegexEnum.EMAIL,max = 150) String email,
+							   @VerifyParam(required = true) String nickName,
+							   @VerifyParam(required = true,regex = VerifyRegexEnum.PASSWORD,min = 8,max = 18) String password,
+							   @VerifyParam(required = true) String emailCode,
+							   @VerifyParam(required = true) String checkCode) throws BusinessException {
+		try {
+			if(!checkCode.equalsIgnoreCase((String)session.getAttribute(Constants.check_code_key))){
+				throw new BusinessException("图片验证码不正确");
+			}
+			userInfoService.register(email,nickName,password,emailCode);
+			return getSuccessResponseVO(null);
+		}finally {
+			session.removeAttribute(Constants.check_code_key);
+		}
+	}
+
+	@RequestMapping("/login")
+	@GlobalInterceptor(checkParams = true)
+	public ResponseVO login(HttpSession session,
+							   @VerifyParam(required = true) String email,
+							   @VerifyParam(required = true) String password,
+							   @VerifyParam(required = true) String checkCode) throws BusinessException {
+		try {
+			if(!checkCode.equalsIgnoreCase((String)session.getAttribute(Constants.check_code_key))){
+				throw new BusinessException("图片验证码不正确");
+			}
+			SessionWebUserDto sessionWebUserDto=userInfoService.login(email,password);
+			session.setAttribute(Constants.session_key,sessionWebUserDto);
+			return getSuccessResponseVO(sessionWebUserDto);
+		}finally {
+			session.removeAttribute(Constants.check_code_key);
 		}
 	}
 }

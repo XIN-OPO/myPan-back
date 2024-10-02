@@ -2,6 +2,7 @@ package com.mypan.component;
 
 import com.mypan.entity.constants.Constants;
 import com.mypan.entity.dto.SysSettingsDto;
+import com.mypan.entity.dto.UserSpaceDto;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
@@ -20,5 +21,8 @@ public class RedisComponent {
         }
         return sysSettingsDto;
 
+    }
+    public void saveUserSpaceUse(String userId, UserSpaceDto userSpaceDto){
+        redisUtils.setex(Constants.redis_key_user_space_use+userId,userSpaceDto,Constants.redis_key_expires_day);
     }
 }

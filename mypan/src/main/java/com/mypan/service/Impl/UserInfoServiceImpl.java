@@ -1,14 +1,30 @@
 package com.mypan.service.Impl;
+import com.mypan.component.RedisComponent;
+import com.mypan.entity.config.AppConfig;
+import com.mypan.entity.constants.Constants;
+import com.mypan.entity.dto.SessionWebUserDto;
+import com.mypan.entity.dto.SysSettingsDto;
+import com.mypan.entity.dto.UserSpaceDto;
 import com.mypan.entity.vo.PaginationResultVO;
 import com.mypan.entity.query.SimplePage;
 import com.mypan.enums.PageSize;
 import com.mypan.entity.po.UserInfo;
 import com.mypan.entity.query.UserInfoQuery;
 import javax.annotation.Resource;
+
+import com.mypan.enums.UserStatusEnum;
+import com.mypan.exception.BusinessException;
 import com.mypan.mappers.UserInfoMapper;
+import com.mypan.service.EmailCodeService;
 import com.mypan.service.UserInfoService;
+import com.mypan.utils.StringUtils;
+import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Date;
 import java.util.List;
+
 
 /**
  * @Description: ServiceImpl
@@ -20,6 +36,15 @@ public class UserInfoServiceImpl implements UserInfoService {
 
 	@Resource
 	private UserInfoMapper<UserInfo,UserInfoQuery> userInfoMapper;
+
+	@Resource
+	private EmailCodeService emailCodeService;
+
+	@Resource
+	private RedisComponent redisComponent;
+
+	@Resource
+	private AppConfig appConfig;
 
 /**
  *根据条件查询列表
@@ -148,5 +173,83 @@ public class UserInfoServiceImpl implements UserInfoService {
 */
 	public Integer deleteUserInfoByNickName(String nickName) {
 		return this.userInfoMapper.deleteByNickName(nickName);
+	}
+
+
+
+	//实现注册
+	@Override
+	@Transactional(rollbackFor = Exception.class)
+	public void register(String email, String nickName, String password, String emailCode) {
+		UserInfo userInfo=this.userInfoMapper.selectByEmail(email);
+		if(null!=userInfo){
+			try {
+				throw new BusinessException("邮箱账号已经存在");
+			} catch (BusinessException e) {
+				e.printStackTrace();
+			}
+		}
+		UserInfo nickNameUser=this.userInfoMapper.selectByNickName(nickName);
+		if(null!=nickNameUser){
+			try {
+				throw new BusinessException("昵称已经存在");
+			} catch (BusinessException e) {
+				e.printStackTrace();
+			}
+		}
+		//校验邮箱验证码
+		emailCodeService.checkCode(email,emailCode);
+
+		String userId= StringUtils.getRandomNumber(Constants.length_10);
+		userInfo=new UserInfo();
+		userInfo.setUserId(userId);
+		userInfo.setNickName(nickName);
+		userInfo.setEmail(email);
+		userInfo.setPassword(StringUtils.encodeByMD5(password));//进行md5存储
+		userInfo.setJoinTime(new Date());
+		userInfo.setStatus(UserStatusEnum.ENABLE.getStatus());
+		userInfo.setUseSpace(0L);
+
+		SysSettingsDto sysSettingsDto=redisComponent.getSysSettingDto();
+
+		userInfo.setTotalSpace(sysSettingsDto.getUserInitUseSpace()*Constants.MB);
+		this.userInfoMapper.insert(userInfo);
+	}
+
+	@Override
+	public SessionWebUserDto login(String email, String password)  {
+		UserInfo userInfo=this.userInfoMapper.selectByEmail(email);
+		if(null==userInfo || !userInfo.getPassword().equals(password)){
+			try {
+				throw new BusinessException("账号或密码错误");
+			} catch (BusinessException e) {
+				e.printStackTrace();
+			}
+		}
+		if(UserStatusEnum.DISABLE.equals(userInfo.getStatus())){
+			try {
+				throw new BusinessException("账号已被封禁");
+			} catch (BusinessException e) {
+				e.printStackTrace();
+			}
+		}
+		UserInfo updateInfo=new UserInfo();
+		updateInfo.setLastLoginTime(new Date());
+		this.userInfoMapper.updateByUserId(updateInfo,userInfo.getUserId());
+
+		SessionWebUserDto sessionWebUserDto= new SessionWebUserDto();
+		sessionWebUserDto.setNickName(userInfo.getNickName());
+		sessionWebUserDto.setUserId(userInfo.getUserId());
+		if(ArrayUtils.contains(appConfig.getAdminEmails().split(","),email)){
+			sessionWebUserDto.setAdmin(true);
+		}else {
+			sessionWebUserDto.setAdmin(false);
+		}
+		//用户空间
+		UserSpaceDto userSpaceDto=new UserSpaceDto();
+		//userSpaceDto.setUseSpace();
+		userSpaceDto.setTotalSpace(userInfo.getTotalSpace());
+		redisComponent.saveUserSpaceUse(userInfo.getUserId(), userSpaceDto);
+		return null;
 	}
 }

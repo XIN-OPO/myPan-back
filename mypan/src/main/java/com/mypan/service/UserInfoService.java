@@ -1,6 +1,7 @@
 package com.mypan.service;
 import java.util.Date;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.mypan.entity.dto.SessionWebUserDto;
 import org.springframework.format.annotation.DateTimeFormat;
 import com.mypan.enums.DateTimePatternEnum;
 import com.mypan.utils.DateUtils;
@@ -107,4 +108,10 @@ public interface UserInfoService{
  *根据NickName删除
 */
 	Integer deleteUserInfoByNickName(String nickName);
+
+	//注册
+	void register(String email,String nickName,String password,String emailCode);
+
+	//登录
+	SessionWebUserDto login(String email ,String password);
 }
