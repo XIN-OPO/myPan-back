@@ -13,4 +13,9 @@ public @interface GlobalInterceptor {
     //校验参数
     boolean checkParams() default false;
 
+    //校验登录
+    boolean checkLogin() default true;
+
+    //校验超级管理员
+    boolean checkAdmin() default false;
 }

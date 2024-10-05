@@ -23,4 +23,13 @@ public class StringUtils {
     public static String encodeByMD5(String originStr){
         return isEmpty(originStr)?null: DigestUtils.md5Hex(originStr);
     }
+    public static Boolean pathIsOk(String filePath){
+        if (StringUtils.isEmpty(filePath)){
+            return true;
+        }
+        if(filePath.contains("../")||filePath.contains("..\\")){
+            return false;
+        }
+        return true;
+    }
 }

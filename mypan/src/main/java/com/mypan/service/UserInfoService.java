@@ -114,4 +114,9 @@ public interface UserInfoService{
 
 	//登录
 	SessionWebUserDto login(String email ,String password);
+
+	//重置密码
+	void resetPwd(String email,String password,String emailCode);
+
+	SessionWebUserDto qqLogin(String code);
 }

@@ -1,5 +1,9 @@
 package com.mypan.entity.dto;
 
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class UserSpaceDto {
     private Long useSpace;
     private Long totalSpace;
