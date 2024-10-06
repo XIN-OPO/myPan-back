@@ -2,10 +2,12 @@ package com.mypan.controller;
 
 import com.mypan.entity.constants.Constants;
 import com.mypan.entity.dto.SessionWebUserDto;
+import com.mypan.entity.vo.PaginationResultVO;
 import com.mypan.enums.ResponseCodeEnum;
 
 import com.mypan.entity.vo.ResponseVO;
 import com.mypan.exception.BusinessException;
+import com.mypan.utils.CopyTools;
 import com.mypan.utils.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,5 +92,15 @@ public class ABaseController{
     protected SessionWebUserDto getUserInfoFromSession(HttpSession session){
         SessionWebUserDto sessionWebUserDto=(SessionWebUserDto) session.getAttribute(Constants.session_key);
         return sessionWebUserDto;
+    }
+
+    protected <S,T> PaginationResultVO<T> convert2PaginationResultVO(PaginationResultVO<S> result,Class<T> classz){
+        PaginationResultVO<T> resultVO=new PaginationResultVO<>();
+        resultVO.setList(CopyTools.copyList(result.getList(),classz));
+        resultVO.setPageNo(result.getPageNo());
+        resultVO.setPageTotal(result.getPageTotal());
+        resultVO.setPageSize(result.getPageSize());
+        resultVO.setTotalCount(result.getTotalCount());
+        return resultVO;
     }
 }

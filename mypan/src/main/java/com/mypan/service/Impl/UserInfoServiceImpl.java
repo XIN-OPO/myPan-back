@@ -6,6 +6,8 @@ import com.mypan.entity.dto.QQInfoDto;
 import com.mypan.entity.dto.SessionWebUserDto;
 import com.mypan.entity.dto.SysSettingsDto;
 import com.mypan.entity.dto.UserSpaceDto;
+import com.mypan.entity.po.FileInfo;
+import com.mypan.entity.query.FileInfoQuery;
 import com.mypan.entity.vo.PaginationResultVO;
 import com.mypan.entity.query.SimplePage;
 import com.mypan.enums.PageSize;
@@ -15,6 +17,7 @@ import javax.annotation.Resource;
 
 import com.mypan.enums.UserStatusEnum;
 import com.mypan.exception.BusinessException;
+import com.mypan.mappers.FileInfoMapper;
 import com.mypan.mappers.UserInfoMapper;
 import com.mypan.service.EmailCodeService;
 import com.mypan.service.UserInfoService;
@@ -56,6 +59,9 @@ public class UserInfoServiceImpl implements UserInfoService {
 
 	@Resource
 	private AppConfig appConfig;
+
+	@Resource
+	private FileInfoMapper<FileInfo, FileInfoQuery> fileInfoMapper;
 
 /**
  *根据条件查询列表
@@ -258,8 +264,8 @@ public class UserInfoServiceImpl implements UserInfoService {
 	 	}
 		//用户空间
 		UserSpaceDto userSpaceDto=new UserSpaceDto();
-		//TODO 查询当前用户已经上床文件大小的总和
-		//userSpaceDto.setUseSpace();
+		Long useSpace=fileInfoMapper.selectUseSpace(userInfo.getUserId());
+		userSpaceDto.setUseSpace(useSpace);
 		userSpaceDto.setTotalSpace(userInfo.getTotalSpace());
 		redisComponent.saveUserSpaceUse(userInfo.getUserId(), userSpaceDto);
 		return sessionWebUserDto;
@@ -327,8 +333,8 @@ public class UserInfoServiceImpl implements UserInfoService {
 				sessionWebUserDto.setAdmin(false);
 			}
 			UserSpaceDto userSpaceDto=new UserSpaceDto();
-			//TODO 获取用户已经使用的空间
-			userSpaceDto.setUseSpace(0L);
+			Long useSpace=fileInfoMapper.selectUseSpace(user.getUserId());
+			userSpaceDto.setUseSpace(useSpace);
 			userSpaceDto.setTotalSpace(user.getTotalSpace());
 			redisComponent.saveUserSpaceUse(user.getUserId(), userSpaceDto);
 			return sessionWebUserDto;

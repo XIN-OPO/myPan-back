@@ -1,5 +1,6 @@
 package com.mypan.utils;
 
+import com.mypan.entity.constants.Constants;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.RandomStringUtils;
 
@@ -31,5 +32,27 @@ public class StringUtils {
             return false;
         }
         return true;
+    }
+
+    public static String rename(String fileName){
+        String fileNameReal=getFileNameNoSuffix(fileName);
+        String suffix=getFileSuffix(fileName);
+        return fileNameReal+"_"+getRandomNumber(Constants.length_5)+suffix;
+    }
+    public static String getFileNameNoSuffix(String fileName){
+        Integer index=fileName.lastIndexOf(".");
+        if(index==-1){
+            return fileName;
+        }
+        fileName=fileName.substring(0,index);
+        return fileName;
+    }
+    public static String getFileSuffix(String fileName){
+        Integer index=fileName.indexOf(".");
+        if(index==-1){
+            return "";
+        }
+        String suffix=fileName.substring(index);
+        return suffix;
     }
 }

@@ -1,6 +1,9 @@
 package com.mypan.service;
 import java.util.Date;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.mypan.entity.dto.SessionWebUserDto;
+import com.mypan.entity.dto.UploadResultDto;
+import com.mypan.exception.BusinessException;
 import org.springframework.format.annotation.DateTimeFormat;
 import com.mypan.enums.DateTimePatternEnum;
 import com.mypan.utils.DateUtils;
@@ -8,6 +11,8 @@ import com.mypan.utils.DateUtils;
 import com.mypan.entity.vo.PaginationResultVO;
 import com.mypan.entity.po.FileInfo;
 import com.mypan.entity.query.FileInfoQuery;
+import org.springframework.web.multipart.MultipartFile;
+
 import java.util.List;
 
 /**
@@ -62,4 +67,6 @@ public interface FileInfoService{
  *根据FileIdAndUserId删除
 */
 	Integer deleteFileInfoByFileIdAndUserId(String fileId, String userId);
+
+	UploadResultDto uploadFile(SessionWebUserDto userDto, String fileId, MultipartFile file, String fileName, String filePid, String fileMd5, Integer chunkIndex, Integer chunks) throws BusinessException;
 }

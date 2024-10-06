@@ -23,4 +23,6 @@ public interface FileInfoMapper<T,P> extends BaseMapper {
 */
 	Integer deleteByFileIdAndUserId(@Param("fileId") String fileId, @Param("userId") String userId);
 
+	Long selectUseSpace(@Param("userId") String userId);
+
 }

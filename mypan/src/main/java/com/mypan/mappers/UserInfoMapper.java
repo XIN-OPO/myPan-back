@@ -3,7 +3,7 @@ import org.apache.ibatis.annotations.Param;
 
 public interface UserInfoMapper<T,P> extends BaseMapper {
 /**
- * @Description: 
+ * @Description:
  * @Author: 张鑫
  * @Date: 2024/09/30
 */
@@ -67,5 +67,8 @@ public interface UserInfoMapper<T,P> extends BaseMapper {
  *根据NickName删除
 */
 	Integer deleteByNickName(@Param("nickName") String nickName);
+
+	//更新空间
+	Integer updateUserSpace(@Param("userId") String userId,@Param("useSpace") Long useSpace,@Param("totalSpace") Long totalSpace);
 
 }

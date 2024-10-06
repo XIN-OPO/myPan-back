@@ -127,73 +127,73 @@
 INSERT INTO user_info
 		<trim prefix="(" suffix=")" suffixOverrides=",">
 			<if test="bean.userId != null">
-				user_id, 
+				user_id,
 			</if>
 			<if test="bean.nickName != null">
-				nick_name, 
+				nick_name,
 			</if>
 			<if test="bean.email != null">
-				email, 
+				email,
 			</if>
 			<if test="bean.qqOpenId != null">
-				qq_open_id, 
+				qq_open_id,
 			</if>
 			<if test="bean.qqAvatar != null">
-				qq_avatar, 
+				qq_avatar,
 			</if>
 			<if test="bean.password != null">
-				password, 
+				password,
 			</if>
 			<if test="bean.joinTime != null">
-				join_time, 
+				join_time,
 			</if>
 			<if test="bean.lastLoginTime != null">
-				last_login_time, 
+				last_login_time,
 			</if>
 			<if test="bean.status != null">
-				status, 
+				status,
 			</if>
 			<if test="bean.useSpace != null">
-				use_space, 
+				use_space,
 			</if>
 			<if test="bean.totalSpace != null">
-				total_space, 
+				total_space,
 			</if>
 
 		</trim>
 		<trim prefix="values (" suffix=")" suffixOverrides=",">
 			<if test="bean.userId != null">
-				#{bean.userId}, 
+				#{bean.userId},
 			</if>
 			<if test="bean.nickName != null">
-				#{bean.nickName}, 
+				#{bean.nickName},
 			</if>
 			<if test="bean.email != null">
-				#{bean.email}, 
+				#{bean.email},
 			</if>
 			<if test="bean.qqOpenId != null">
-				#{bean.qqOpenId}, 
+				#{bean.qqOpenId},
 			</if>
 			<if test="bean.qqAvatar != null">
-				#{bean.qqAvatar}, 
+				#{bean.qqAvatar},
 			</if>
 			<if test="bean.password != null">
-				#{bean.password}, 
+				#{bean.password},
 			</if>
 			<if test="bean.joinTime != null">
-				#{bean.joinTime}, 
+				#{bean.joinTime},
 			</if>
 			<if test="bean.lastLoginTime != null">
-				#{bean.lastLoginTime}, 
+				#{bean.lastLoginTime},
 			</if>
 			<if test="bean.status != null">
-				#{bean.status}, 
+				#{bean.status},
 			</if>
 			<if test="bean.useSpace != null">
-				#{bean.useSpace}, 
+				#{bean.useSpace},
 			</if>
 			<if test="bean.totalSpace != null">
-				#{bean.totalSpace}, 
+				#{bean.totalSpace},
 			</if>
 
 		</trim>
@@ -203,73 +203,73 @@ INSERT INTO user_info
 		INSERT INTO user_info
 		<trim prefix="(" suffix=")" suffixOverrides=",">
 			<if test="bean.userId != null">
-				user_id, 
+				user_id,
 			</if>
 			<if test="bean.nickName != null">
-				nick_name, 
+				nick_name,
 			</if>
 			<if test="bean.email != null">
-				email, 
+				email,
 			</if>
 			<if test="bean.qqOpenId != null">
-				qq_open_id, 
+				qq_open_id,
 			</if>
 			<if test="bean.qqAvatar != null">
-				qq_avatar, 
+				qq_avatar,
 			</if>
 			<if test="bean.password != null">
-				password, 
+				password,
 			</if>
 			<if test="bean.joinTime != null">
-				join_time, 
+				join_time,
 			</if>
 			<if test="bean.lastLoginTime != null">
-				last_login_time, 
+				last_login_time,
 			</if>
 			<if test="bean.status != null">
-				status, 
+				status,
 			</if>
 			<if test="bean.useSpace != null">
-				use_space, 
+				use_space,
 			</if>
 			<if test="bean.totalSpace != null">
-				total_space, 
+				total_space,
 			</if>
 
 		</trim>
 		<trim prefix="values (" suffix=")" suffixOverrides=",">
 			<if test="bean.userId != null">
-				#{bean.userId}, 
+				#{bean.userId},
 			</if>
 			<if test="bean.nickName != null">
-				#{bean.nickName}, 
+				#{bean.nickName},
 			</if>
 			<if test="bean.email != null">
-				#{bean.email}, 
+				#{bean.email},
 			</if>
 			<if test="bean.qqOpenId != null">
-				#{bean.qqOpenId}, 
+				#{bean.qqOpenId},
 			</if>
 			<if test="bean.qqAvatar != null">
-				#{bean.qqAvatar}, 
+				#{bean.qqAvatar},
 			</if>
 			<if test="bean.password != null">
-				#{bean.password}, 
+				#{bean.password},
 			</if>
 			<if test="bean.joinTime != null">
-				#{bean.joinTime}, 
+				#{bean.joinTime},
 			</if>
 			<if test="bean.lastLoginTime != null">
-				#{bean.lastLoginTime}, 
+				#{bean.lastLoginTime},
 			</if>
 			<if test="bean.status != null">
-				#{bean.status}, 
+				#{bean.status},
 			</if>
 			<if test="bean.useSpace != null">
-				#{bean.useSpace}, 
+				#{bean.useSpace},
 			</if>
 			<if test="bean.totalSpace != null">
-				#{bean.totalSpace}, 
+				#{bean.totalSpace},
 			</if>
 
 		</trim>
@@ -521,4 +521,23 @@ INSERT INTO user_info
 		delete from user_info where nick_name=#{nickName}
 	</delete>
 
+
+	<update id="updateUserSpace">
+		update user_info
+		<set>
+			<if test="useSpace!=null">
+				use_space=use_space+#{useSpace},
+			</if>
+		    <if test="totalSpace!=null">
+				total_space=total_space+#{totalSpace},
+			</if>
+		</set>
+		where user_id=#{userId}
+		<if test="useSpace!=null">
+			and <![CDATA[ (use_space+#{useSpace}) <=total_space ]]>
+		</if>
+		<if test="totalSpace!=null">
+			and <![CDATA[ (total_space+#{totalSpace}) >=use_space ]]>
+		</if>
+	</update>
 </mapper>
