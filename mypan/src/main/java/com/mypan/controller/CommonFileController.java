@@ -3,14 +3,20 @@ package com.mypan.controller;
 import com.mypan.entity.config.AppConfig;
 import com.mypan.entity.constants.Constants;
 import com.mypan.entity.po.FileInfo;
+import com.mypan.entity.query.FileInfoQuery;
+import com.mypan.entity.vo.FileInfoVO;
+import com.mypan.entity.vo.ResponseVO;
+import com.mypan.enums.FileFolderTypeEnums;
 import com.mypan.enums.FileTypeEnums;
 import com.mypan.service.FileInfoService;
+import com.mypan.utils.CopyTools;
 import com.mypan.utils.StringUtils;
 import org.springframework.web.bind.annotation.PathVariable;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
+import java.util.List;
 import java.util.Locale;
 
 public class CommonFileController extends ABaseController{
@@ -61,6 +67,18 @@ public class CommonFileController extends ABaseController{
                 return;
             }
         }
-            readFile(response,filePath);
+        readFile(response,filePath);
+    }
+
+    public ResponseVO getFolderInfo(String path,String usrId){
+        String[] pathArray=path.split("/");
+        FileInfoQuery fileInfoQuery=new FileInfoQuery();
+        fileInfoQuery.setUserId(usrId);
+        fileInfoQuery.setFolderType(FileFolderTypeEnums.FOLDER.getType());
+        fileInfoQuery.setFileIdArray(pathArray);
+        String oderBy="field(file_id,\""+ org.apache.commons.lang3.StringUtils.join(pathArray,"\",\"") +"\")";
+        fileInfoQuery.setOrderBy(oderBy);
+        List<FileInfo> fileInfoList=fileInfoService.findListByParam(fileInfoQuery);
+        return getSuccessResponseVO(CopyTools.copyList(fileInfoList, FileInfoVO.class));
     }
 }

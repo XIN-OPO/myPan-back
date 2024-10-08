@@ -69,4 +69,10 @@ public interface FileInfoService{
 	Integer deleteFileInfoByFileIdAndUserId(String fileId, String userId);
 
 	UploadResultDto uploadFile(SessionWebUserDto userDto, String fileId, MultipartFile file, String fileName, String filePid, String fileMd5, Integer chunkIndex, Integer chunks) throws BusinessException;
+
+	FileInfo newFolder(String filePid,String userId,String folderName) throws BusinessException;
+
+	FileInfo rename(String fileId,String userId,String fileName) throws BusinessException;
+
+	void changeFileFolder(String fileIds,String filePid,String userId) throws BusinessException;
 }

@@ -39,6 +39,9 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * @Description: 文件信息表ServiceImpl
@@ -421,6 +424,107 @@ public class FileInfoServiceImpl implements FileInfoService {
 		new File(tsPath).delete();
 	}
 
+	@Override
+	public FileInfo newFolder(String filePid, String userId, String folderName) throws BusinessException {
+		checkFileName(filePid,userId,folderName,FileFolderTypeEnums.FOLDER.getType());
+		Date curDate=new Date();
+		FileInfo fileInfo=new FileInfo();
+		fileInfo.setFileId(StringUtils.getRandomString(Constants.length_10));
+		fileInfo.setUserId(userId);
+		fileInfo.setFilePid(filePid);
+		fileInfo.setFileName(folderName);
+		fileInfo.setFolderType(FileFolderTypeEnums.FOLDER.getType());
+		fileInfo.setCreateTime(curDate);
+		fileInfo.setLastUpdateTime(curDate);
+		fileInfo.setStatus(FileStatusEnums.USING.getStatus());
+		fileInfo.setDelFlag(FileDelFlag.USING.getFlag());
+		this.fileInfoMapper.insert(fileInfo);
+		return fileInfo;
+	}
+	private void checkFileName(String filePid,String userId,String fileName,Integer folderType) throws BusinessException {
+		FileInfoQuery fileInfoQuery=new FileInfoQuery();
+		fileInfoQuery.setFolderType(folderType);
+		fileInfoQuery.setFileName(fileName);
+		fileInfoQuery.setFilePid(filePid);
+		fileInfoQuery.setUserId(userId);
+		Integer count =this.fileInfoMapper.selectCount(fileInfoQuery);
+		if(count>0){
+			throw new BusinessException("此目录下已经存在同名文件，请修改名称");
+		}
+	}
+
+	@Override
+	@Transactional(rollbackFor = Exception.class)
+	public FileInfo rename(String fileId, String userId, String fileName) throws BusinessException {
+		FileInfo fileInfo=this.fileInfoMapper.selectByFileIdAndUserId(fileId,userId);
+		if(null==fileInfo){
+			throw new BusinessException("文件不存在");
+		}
+		String filePid=fileInfo.getFilePid();
+		checkFileName(filePid,userId,fileName, fileInfo.getFolderType());
+		//获取文件后缀
+		if(FileFolderTypeEnums.FILE.getType().equals(fileInfo.getFileType())){
+			fileName=fileName+StringUtils.getFileSuffix(fileInfo.getFileName());
+		}
+		Date curDate=new Date();
+		FileInfo dbInfo=new FileInfo();
+		//dbInfo.setFileId(fileId);
+		dbInfo.setFileName(fileName);
+		dbInfo.setLastUpdateTime(curDate);
+		this.fileInfoMapper.updateByFileIdAndUserId(dbInfo,fileId,userId);
+		FileInfoQuery fileInfoQuery=new FileInfoQuery();
+		fileInfoQuery.setFilePid(filePid);
+		fileInfoQuery.setUserId(userId);
+		fileInfoQuery.setFileName(fileName);
+		Integer count =this.fileInfoMapper.selectCount(fileInfoQuery);
+		if(count>1){
+			throw new BusinessException("文件名"+fileName+"已经存在");
+		}
+		fileInfo.setFileName(fileName);
+		fileInfo.setLastUpdateTime(curDate);
+		return fileInfo;
+	}
+
+	@Override
+	public void changeFileFolder(String fileIds, String filePid, String userId) throws BusinessException {
+		if(fileIds.equals(filePid)){
+			throw new BusinessException(ResponseCodeEnum.CODE_600);
+		}
+		if(!Constants.zero_str.equals(filePid)){//如果不是在根目录
+			FileInfo fileInfo=fileInfoServiceImp.getFileInfoByFileIdAndUserId(filePid,userId);
+			if(fileInfo==null || !FileDelFlag.USING.getFlag().equals(fileInfo.getDelFlag())){
+				throw new BusinessException(ResponseCodeEnum.CODE_600);
+			}
+		}
+
+		String[] fileIdArray=fileIds.split(",");
+		FileInfoQuery query=new FileInfoQuery();
+		query.setFilePid(filePid);
+		query.setUserId(userId);
+		List<FileInfo> dbFileList=fileInfoServiceImp.findListByParam(query);
+
+		Map<String,FileInfo> dbFileName=dbFileList.stream().collect(Collectors.toMap(FileInfo::getFileName, Function.identity(),(file1,file2)->file2));
+
+		//查询选中的文件
+		query=new FileInfoQuery();
+		query.setUserId(userId);
+		query.setFileIdArray(fileIdArray);
+		List<FileInfo> selectFileList=this.findListByParam(query);
+
+		//将所选文件重命名
+		for(FileInfo fileInfo:selectFileList){
+			FileInfo rootFileInfo=dbFileName.get(fileInfo.getFileName());
+			//如果文件名已经存在 则重命名
+			FileInfo updateInfo=new FileInfo();
+			if(rootFileInfo!=null){
+				String fileName=StringUtils.rename(fileInfo.getFileName());
+				updateInfo.setFileName(fileName);
+			}
+			updateInfo.setFilePid(filePid);
+			this.fileInfoMapper.updateByFileIdAndUserId(updateInfo,fileInfo.getFileId(),userId);
+		}
+
+	}
 }
 
 

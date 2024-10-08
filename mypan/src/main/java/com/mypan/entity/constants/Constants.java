@@ -10,6 +10,7 @@ public class Constants {
     public static final String check_code_key="check_code_key";
     public static final String check_code_key_email="check_code_key_email";
     public static final Integer zero=0;
+    public static final String zero_str="0";
     public static final String redis_key_sys_setting="mypan:syssetting:";
     public static final Long MB=1024*1024L;
     public static final Integer redis_key_expires_one_min=60;
