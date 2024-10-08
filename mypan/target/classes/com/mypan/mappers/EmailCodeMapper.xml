@@ -18,22 +18,22 @@
 	<!-- 通用查询结果列 -->
 	<sql id="base_column_list">
 
-			email,code,create_time,status
+		email,code,create_time,status
 
 	</sql>
 	<!-- 基础查询条件 -->
 	<sql id="base_query_condition">
 		<if test="query.email !=null and query.email!=''">
-			and id= #{query.email}
+			and email= #{query.email}
 		</if>
 		<if test="query.code !=null and query.code!=''">
-			and id= #{query.code}
+			and code= #{query.code}
 		</if>
 		<if test="query.createTime !=null">
-			and id= #{query.createTime}
+			and create_time= #{query.createTime}
 		</if>
 		<if test="query.status !=null">
-			and id= #{query.status}
+			and status= #{query.status}
 		</if>
 	</sql>
 	<!-- 扩展查询条件 -->
@@ -61,8 +61,8 @@
 	<!-- 查询列表 -->
 	<select id="selectList" resultMap="base_result_map">
 		SELECT <include refid="base_column_list"/> FROM email_code <include refid="query_condition"/>
-			<if test="query.orderBy!=null">order by ${query.orderBy}</if>
-			<if test="query.simplePage!=null">limit #{query.simplePage.start},#{query.simplePage.end}</if>
+		<if test="query.orderBy!=null">order by ${query.orderBy}</if>
+		<if test="query.simplePage!=null">limit #{query.simplePage.start},#{query.simplePage.end}</if>
 	</select>
 	<!-- 查询数量 -->
 	<select id="selectCount" resultType="java.lang.Integer">
@@ -71,7 +71,7 @@
 	<!-- 插入(匹配有值的字段) -->
 	<insert id="insert" parameterType="com.mypan.entity.po.EmailCode">
 
-INSERT INTO email_code
+		INSERT INTO email_code
 		<trim prefix="(" suffix=")" suffixOverrides=",">
 			<if test="bean.email != null">
 				email,
@@ -103,7 +103,7 @@ INSERT INTO email_code
 
 		</trim>
 	</insert>
-<!-- 插入或者更新 （匹配有值的字段）-->
+	<!-- 插入或者更新 （匹配有值的字段）-->
 	<insert id="insertOrUpdate" parameterType="com.mypan.entity.po.EmailCode">
 		INSERT INTO email_code
 		<trim prefix="(" suffix=")" suffixOverrides=",">
@@ -147,47 +147,47 @@ INSERT INTO email_code
 
 		</trim>
 	</insert>
-<!-- 添加（批量插入）-->
+	<!-- 添加（批量插入）-->
 	<insert id="insertBatch" parameterType="com.mypan.entity.po.EmailCode">
 		INSERT INTO email_code(email,code,create_time,status) values
 		<foreach collection="list" item="item" separator=",">
 			(#{item.email},#{item.code},#{item.createTime},#{item.status})
 		</foreach>
 	</insert>
-<!-- 批量插入（或者更新）-->
+	<!-- 批量插入（或者更新）-->
 	<insert id="insertOrUpdateBatch" parameterType="com.mypan.entity.po.EmailCode">
 		INSERT INTO email_code(email,code,create_time,status) values
 		<foreach collection="list" item="item" separator=",">
 			(#{item.email},#{item.code},#{item.createTime},#{item.status})
 		</foreach>
 		on DUPLICATE key update
-			email = VALUES(email),code = VALUES(code),create_time = VALUES(create_time),status = VALUES(status)
+		email = VALUES(email),code = VALUES(code),create_time = VALUES(create_time),status = VALUES(status)
 	</insert>
-<!-- 根据主键更新 -->
+	<!-- 根据主键更新 -->
 
 	<!-- 根据EmailAndCode查询-->
 	<select id="selectByEmailAndCode" resultMap="base_result_map">
 		select <include refid="base_column_list"/> from email_code where email=#{email} and code=#{code}
 	</select>
 
-<!-- 根据EmailAndCode更新-->
+	<!-- 根据EmailAndCode更新-->
 	<update id="updateByEmailAndCode" parameterType="com.mypan.entity.po.EmailCode">
 		update email_code
-			<set>
-				<if test="bean.email!=null">
-					email=#{bean.email},
-				</if>
-				<if test="bean.code!=null">
-					code=#{bean.code},
-				</if>
-				<if test="bean.createTime!=null">
-					create_time=#{bean.createTime},
-				</if>
-				<if test="bean.status!=null">
-					status=#{bean.status},
-				</if>
+		<set>
+			<if test="bean.email!=null">
+				email=#{bean.email},
+			</if>
+			<if test="bean.code!=null">
+				code=#{bean.code},
+			</if>
+			<if test="bean.createTime!=null">
+				create_time=#{bean.createTime},
+			</if>
+			<if test="bean.status!=null">
+				status=#{bean.status},
+			</if>
 
-			</set>
+		</set>
 		where email=#{email} and code=#{code}
 	</update>
 	<!-- 根据EmailAndCode删除-->

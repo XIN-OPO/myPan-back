@@ -43,4 +43,27 @@ public class RedisComponent {
         }
         return spaceDto;
     }
+
+    //获取临时文件大小
+    public Long getFileTempSize(String userId ,String fileId){
+        Long currentSize=getFileSizeFromRedis(Constants.redis_key_user_file_temp_size+userId+fileId);
+        return currentSize;
+    }
+    private Long getFileSizeFromRedis(String key){
+        Object sizeObj=redisUtils.get(key);
+        if(sizeObj==null){
+            return 0L;
+        }
+        if(sizeObj instanceof Integer){
+            return ((Integer)sizeObj).longValue();
+        }else if(sizeObj instanceof Long ){
+            return (Long)sizeObj;
+        }
+        return 0L;
+    }
+    //保存临时文件大小
+    public void saveTempFileSize(String userId,String fileId,Long fileSize){
+        Long currentSize=getFileTempSize(userId,fileId);
+        redisUtils.setex(Constants.redis_key_user_file_temp_size+userId+fileId,currentSize+fileSize,Constants.redis_key_expires_one_hour);
+    }
 }

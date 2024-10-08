@@ -196,7 +196,7 @@ public class AccountController extends ABaseController {
 	public ResponseVO getUseSpace(HttpSession session)  {
 		SessionWebUserDto sessionWebUserDto=getUserInfoFromSession(session);
 		UserSpaceDto spaceDto= redisComponent.getUserSpaceUse(sessionWebUserDto.getUserId());
-		return getSuccessResponseVO(sessionWebUserDto);
+		return getSuccessResponseVO(spaceDto);
 	}
 
 	@RequestMapping("/logout")

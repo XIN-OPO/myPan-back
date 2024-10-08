@@ -1,5 +1,6 @@
 package com.mypan.service.Impl;
 import com.mypan.component.RedisComponent;
+import com.mypan.entity.config.AppConfig;
 import com.mypan.entity.constants.Constants;
 import com.mypan.entity.dto.SessionWebUserDto;
 import com.mypan.entity.dto.UploadResultDto;
@@ -17,11 +18,25 @@ import com.mypan.exception.BusinessException;
 import com.mypan.mappers.FileInfoMapper;
 import com.mypan.mappers.UserInfoMapper;
 import com.mypan.service.FileInfoService;
+import com.mypan.utils.DateUtils;
+import com.mypan.utils.ProcessUtils;
+import com.mypan.utils.ScaleFilter;
 import com.mypan.utils.StringUtils;
+import org.apache.commons.io.FileUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.TransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.util.Date;
 import java.util.List;
 
@@ -41,6 +56,15 @@ public class FileInfoServiceImpl implements FileInfoService {
 
 	@Resource
 	private UserInfoMapper<UserInfo, UserInfoQuery> userInfoMapper;
+
+	@Resource
+	private AppConfig appConfig;
+
+	@Resource
+	@Lazy
+	private FileInfoServiceImpl fileInfoServiceImp;
+
+	private static final Logger logger= LoggerFactory.getLogger(FileInfoServiceImpl.class);
 
 /**
  *根据条件查询列表
@@ -117,42 +141,129 @@ public class FileInfoServiceImpl implements FileInfoService {
 									  String fileName, String filePid, String fileMd5,
 									  Integer chunkIndex, Integer chunks) throws BusinessException {
 		UploadResultDto resultDto=new UploadResultDto();
-		if(StringUtils.isEmpty(fileId)){
-			fileId=StringUtils.getRandomNumber(Constants.length_10);
-		}
-		Date curDate=new Date();
-		UserSpaceDto userSpaceDto= redisComponent.getUserSpaceUse(webUserDto.getUserId());
-		if(chunkIndex==0){//第一个分片
-			FileInfoQuery infoQuery=new FileInfoQuery();
-			infoQuery.setFileMd5(fileMd5);
-			infoQuery.setSimplePage(new SimplePage(0,1));
-			infoQuery.setStatus(FileStatusEnums.USING.getStatus());
-			List<FileInfo> dbFileList=this.fileInfoMapper.selectList(infoQuery);
-			if(!dbFileList.isEmpty()){//秒传
-				FileInfo dbFile=dbFileList.get(0);
-				//判断文件大小
-				if(dbFile.getFileSize()+userSpaceDto.getUseSpace()>userSpaceDto.getTotalSpace()){
-					throw new BusinessException(ResponseCodeEnum.CODE_904);
+
+		Boolean uploadSuccess=true;
+		File tempFileFolder=null;
+		try {
+			if(StringUtils.isEmpty(fileId)){
+				fileId=StringUtils.getRandomString(Constants.length_10);
+			}
+			resultDto.setFileId(fileId);
+			Date curDate=new Date();
+			UserSpaceDto userSpaceDto= redisComponent.getUserSpaceUse(webUserDto.getUserId());
+
+			if(chunkIndex==0) {//第一个分片
+				FileInfoQuery infoQuery = new FileInfoQuery();
+				infoQuery.setFileMd5(fileMd5);
+				infoQuery.setSimplePage(new SimplePage(0, 1));
+				infoQuery.setStatus(FileStatusEnums.USING.getStatus());
+				List<FileInfo> dbFileList = fileInfoMapper.selectList(infoQuery);
+				//秒传
+				if (!dbFileList.isEmpty()) {
+					FileInfo dbFile = dbFileList.get(0);
+					//判断文件大小
+					if (dbFile.getFileSize() + userSpaceDto.getUseSpace() > userSpaceDto.getTotalSpace()) {
+						throw new BusinessException(ResponseCodeEnum.CODE_904);
+					}
+					dbFile.setFileId(fileId);
+					dbFile.setFilePid(filePid);
+					dbFile.setUserId(webUserDto.getUserId());
+					dbFile.setCreateTime(curDate);
+					dbFile.setLastUpdateTime(curDate);
+					dbFile.setStatus(FileStatusEnums.USING.getStatus());
+					dbFile.setDelFlag(FileDelFlag.USING.getFlag());
+					dbFile.setFileMd5(fileMd5);
+					//文件重命名
+					fileName = autoRename(filePid, webUserDto.getUserId(), fileName);
+					dbFile.setFileName(fileName);
+					this.fileInfoMapper.insert(dbFile);
+					resultDto.setStatus(UploadStatusEnums.UPLOAD_SECONDS.getCode());
+					//更新用户使用空间
+					updateUserSpace(webUserDto, dbFile.getFileSize());
+					return resultDto;
 				}
-				dbFile.setFileId(fileId);
-				dbFile.setFilePid(filePid);
-				dbFile.setUserId(webUserDto.getUserId());
-				dbFile.setCreateTime(curDate);
-				dbFile.setLastUpdateTime(curDate);
-				dbFile.setStatus(FileStatusEnums.USING.getStatus());
-				dbFile.setDelFlag(FileDelFlag.USING.getFlag());
-				dbFile.setFileMd5(fileMd5);
-				//文件重命名
-				fileName=autoRename(filePid, webUserDto.getUserId(), fileName);
-				dbFile.setFileName(fileName);
-				this.fileInfoMapper.insert(dbFile);
-				resultDto.setStatus(UploadStatusEnums.UPLOAD_SECONDS.getCode());
-				//更新用户使用空间
-				updateUserSpace(webUserDto,dbFile.getFileSize());
+			}
+			//判断磁盘空间
+			Long currentTempSize=redisComponent.getFileTempSize(webUserDto.getUserId(), fileId);
+			if(file.getSize()+currentTempSize+userSpaceDto.getUseSpace()>userSpaceDto.getTotalSpace()){
+				throw new BusinessException(ResponseCodeEnum.CODE_904);
+			}
+			//正常的分片上传
+			//暂存临时目录
+			String tempFolderName=appConfig.getProjectFolder()+Constants.file_folder_temp;
+			String currentUserFolderName= webUserDto.getUserId()+fileId;
+
+			tempFileFolder=new File(tempFolderName,currentUserFolderName);
+			if(!tempFileFolder.exists()){
+				tempFileFolder.mkdirs();
+			}
+			File newFile=new File(tempFileFolder.getPath()+"/"+chunkIndex);
+			file.transferTo(newFile);
+			if(chunkIndex<chunks-1){
+				resultDto.setStatus(UploadStatusEnums.UPLOADING.getCode());
+				//保存临时大小
+				redisComponent.saveTempFileSize(webUserDto.getUserId(), fileId,file.getSize());
 				return resultDto;
 			}
+			redisComponent.saveTempFileSize(webUserDto.getUserId(), fileId,file.getSize());
+			//最后一个分片上传完成，记入数据库，异步合并分片
+			String month= DateUtils.format(new Date(),DateTimePatternEnum.YYYYMM.getPattern());
+			String fileSuffix=StringUtils.getFileSuffix(fileName);
+			String realFileName=currentUserFolderName+fileSuffix;
+			FileTypeEnums fileTypeEnums=FileTypeEnums.getFileTypeBySuffix(fileSuffix);
+			//自动重命名
+			fileName=autoRename(filePid, webUserDto.getUserId(),fileName);
+			FileInfo fileInfo=new FileInfo();
+			fileInfo.setFileId(fileId);
+			fileInfo.setUserId(webUserDto.getUserId());
+			fileInfo.setFileMd5(fileMd5);
+			fileInfo.setFileName(fileName);
+			fileInfo.setFilePath(month+"/"+realFileName);
+			fileInfo.setFilePid(filePid);
+			fileInfo.setCreateTime(curDate);
+			fileInfo.setLastUpdateTime(curDate);
+			fileInfo.setFileCategary(fileTypeEnums.getCategory().getCategory());
+			fileInfo.setFileType(fileTypeEnums.getType());
+			fileInfo.setStatus(FileStatusEnums.TRANSFER.getStatus());
+			fileInfo.setFolderType(FileFolderTypeEnums.FILE.getType());
+			fileInfo.setDelFlag(FileDelFlag.USING.getFlag());
+			this.fileInfoMapper.insert(fileInfo);
+			Long totalSize= redisComponent.getFileTempSize(webUserDto.getUserId(), fileId);
+			updateUserSpace(webUserDto,totalSize);
+
+			resultDto.setStatus(UploadStatusEnums.UPLOAD_FINISH.getCode());
+
+			//转码
+			TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+				@Override
+				public void afterCommit() {
+					try {
+						fileInfoServiceImp.transferFile(fileInfo.getFileId(),webUserDto);
+					} catch (BusinessException e) {
+						e.printStackTrace();
+					}
+				}
+			});
+
+
+			return resultDto;
+		}catch (BusinessException e){
+			logger.error("文件上传失败",e);
+			uploadSuccess=false;
+			throw e;
+		}catch (Exception e){
+			logger.error("文件上传失败",e);
+			uploadSuccess=false;
+		}finally {
+			if(!uploadSuccess && tempFileFolder!=null){
+				try {
+					FileUtils.deleteDirectory(tempFileFolder);
+				} catch (IOException e) {
+					logger.error("删除临时目录失败",e);
+				}
+			}
 		}
-		resultDto.setFileId(fileId);
+
 		return resultDto;
 	}
 
@@ -181,6 +292,135 @@ public class FileInfoServiceImpl implements FileInfoService {
 		spaceDto.setUseSpace(spaceDto.getUseSpace()+useSpace);
 		redisComponent.saveUserSpaceUse(webUserDto.getUserId(), spaceDto);
 	}
+
+	@Async
+	public void transferFile(String fileId,SessionWebUserDto webUserDto) throws BusinessException{
+		Boolean transferSuccess=true;
+		String targetFilePath=null;
+		String cover=null;
+		FileTypeEnums fileTypeEnum=null;
+		FileInfo fileInfo=this.fileInfoMapper.selectByFileIdAndUserId(fileId,webUserDto.getUserId());
+		try {
+			if(fileInfo==null || !FileStatusEnums.TRANSFER.getStatus().equals(fileInfo.getStatus())){
+				return;
+			}
+			//临时目录
+			String tempFolderName=appConfig.getProjectFolder()+Constants.file_folder_temp;
+			String currentUserFolderName= webUserDto.getUserId()+fileId;
+			File fileFolder=new File(tempFolderName+currentUserFolderName);
+
+			String fileSuffix=StringUtils.getFileSuffix(fileInfo.getFileName());
+			String month=DateUtils.format(fileInfo.getCreateTime(),DateTimePatternEnum.YYYYMM.getPattern());
+			//目标目录
+			String targetFolderName=appConfig.getProjectFolder()+Constants.file_folder_file;
+			File targetFolder=new File(targetFolderName+"/"+month);
+			if(!targetFolder.exists()){
+				targetFolder.mkdirs();
+			}
+			//真实的文件名
+			String realFileName=currentUserFolderName+fileSuffix;
+			targetFilePath=targetFolder.getPath()+"/"+realFileName;
+
+			//合并文件
+			union(fileFolder.getPath(),targetFilePath,fileInfo.getFileName(),true);
+
+			//视频文件的切割
+			fileTypeEnum =FileTypeEnums.getFileTypeBySuffix(fileSuffix);
+			if(FileTypeEnums.VIDEO==fileTypeEnum){
+				cutFile4Video(fileId,targetFilePath);
+				//视频生成缩略图
+				cover=month+"/"+currentUserFolderName+Constants.image_png_suffix;
+				String coverPath=targetFolderName+"/"+cover;
+				ScaleFilter.createCover4Video(new File(targetFilePath),Constants.length_150,new File(coverPath));
+			}else if(FileTypeEnums.IMAGE==fileTypeEnum){
+				//生成缩略图
+				cover=month+"/"+realFileName.replace(".","_.");
+				String coverPath=targetFolderName+"/"+cover;
+				Boolean created=ScaleFilter.createThumbnailWidthFFmpeg(new File(targetFilePath),Constants.length_150,new File(coverPath),false);
+				if(!created){
+					FileUtils.copyFile(new File(targetFilePath),new File(coverPath));
+				}
+			}
+		}catch (Exception e){
+			logger.error("文件转码失败，文件ID:{},UserId:{}",fileId,webUserDto.getUserId(),e);
+			transferSuccess=false;
+		}finally {
+			FileInfo updateInfo=new FileInfo();
+			updateInfo.setFileSize(new File(targetFilePath).length());
+			updateInfo.setFileCover(cover);
+			updateInfo.setStatus(transferSuccess?FileStatusEnums.USING.getStatus() : FileStatusEnums.TRANSFER_FALL.getStatus());
+			fileInfoMapper.updateFileStatusWithOldStatus(fileId,webUserDto.getUserId(),updateInfo,FileStatusEnums.TRANSFER.getStatus());
+
+		}
+	}
+
+	private void union(String dirPath,String toFilePath,String fileName,Boolean delSource) throws BusinessException {
+		File dir=new File(dirPath);
+		if(!dir.exists()){
+			throw new BusinessException("目录不存在");
+		}
+
+		File[] fileList=dir.listFiles();
+		File targetFile=new File(toFilePath);
+		RandomAccessFile writeFile=null;
+		try {
+			writeFile=new RandomAccessFile(targetFile,"rw");
+			byte[] b=new byte[1024*10];
+			for(int i=0;i<fileList.length;i++){
+				int len=-1;
+				File chunkFile=new File(dirPath+"/"+i);
+				RandomAccessFile readFile=null;
+				try {
+					readFile=new RandomAccessFile(chunkFile,"r");
+					while ((len=readFile.read(b))!=-1){
+						writeFile.write(b,0,len);
+					}
+				}catch (Exception e) {
+					logger.error("合并分片失败",e);
+					 throw new BusinessException("合并分片失败");
+				}finally {
+					readFile.close();
+				}
+			}
+		}catch (Exception e){
+			logger.error("合并文件{}失败",fileName,e);
+			throw new BusinessException("合并文件"+fileName+"出错了");
+		}finally {
+			if(null!=writeFile){
+				try {
+					writeFile.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+			if(delSource && dir.exists()){
+				try {
+					FileUtils.deleteDirectory(dir);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+	private void cutFile4Video(String fileId,String videoFilePath) throws BusinessException {
+		//创建同名切片目录
+		File tsFolder=new File(videoFilePath.substring(0,videoFilePath.lastIndexOf(".")));
+		if(!tsFolder.exists()){
+			tsFolder.mkdirs();
+		}
+		final String CMD_TRANSFER_2TS = "ffmpeg -y -i %s -vcodec copy -acodec copy -bsf:v h264_mp4toannexb %s";
+		final String CMD_CUT_TS = "ffmpeg -i %s -c copy -map 0 -f segment -segment_list %s -segment_time 30 -reset_timestamps 1 %s/%s_%%04d.ts";
+		String tsPath=tsFolder+"/"+Constants.ts_name;
+		//生成.ts
+		String cmd=String.format(CMD_TRANSFER_2TS,videoFilePath,tsPath);
+		ProcessUtils.executeCommand(cmd,false);
+		//生成索引文件.m3u8和切片.ts
+		cmd=String.format(CMD_CUT_TS,tsPath,tsFolder.getPath()+"/"+Constants.m3u8_name,tsFolder.getPath(),fileId);
+		ProcessUtils.executeCommand(cmd,false);
+		//删除index.ts文件
+		new File(tsPath).delete();
+	}
+
 }
 
 

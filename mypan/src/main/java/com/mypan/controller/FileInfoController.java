@@ -7,6 +7,7 @@ import com.mypan.entity.dto.UploadResultDto;
 import com.mypan.entity.po.FileInfo;
 import com.mypan.entity.query.FileInfoQuery;
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import com.mypan.entity.vo.FileInfoVO;
@@ -16,9 +17,7 @@ import com.mypan.enums.FileDelFlag;
 import com.mypan.exception.BusinessException;
 import com.mypan.service.FileInfoService;
 import org.springframework.boot.web.servlet.server.Session;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.*;
 import com.mypan.entity.vo.ResponseVO;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -31,13 +30,13 @@ import java.util.List;
 */
 @RestController("fileInfoController")
 @RequestMapping("file")
-public class FileInfoController extends ABaseController {
+public class FileInfoController extends CommonFileController {
 
 	@Resource
 	private FileInfoService fileInfoService;
 
 
-	@RequestMapping("loadDataList")
+	@RequestMapping("/loadDataList")
 	@GlobalInterceptor
 	public ResponseVO loadDataList(HttpSession session, FileInfoQuery query,String fileCategory) {
 		FileCategoryEnums categoryEnums=FileCategoryEnums.getByCode(fileCategory);
@@ -51,7 +50,7 @@ public class FileInfoController extends ABaseController {
 		return getSuccessResponseVO(convert2PaginationResultVO(resultVO, FileInfoVO.class));
 	}
 
-	@RequestMapping("uploadFile")
+	@RequestMapping("/uploadFile")
 	@GlobalInterceptor(checkParams = true)
 	public ResponseVO uploadFile(HttpSession session,
 								 String fileId,
@@ -64,5 +63,25 @@ public class FileInfoController extends ABaseController {
 		SessionWebUserDto userDto=getUserInfoFromSession(session);
 		UploadResultDto uploadResultDto=fileInfoService.uploadFile(userDto,fileId,file,fileName,filePid,fileMd5,chunkIndex,chunks);
 		return getSuccessResponseVO(uploadResultDto);
+	}
+
+	@RequestMapping("/getImage/{imageFolder}/{imageName}")
+	@GlobalInterceptor(checkParams = true)
+	public void getImage(HttpServletResponse response, @PathVariable("imageFolder") String imageFolder,@PathVariable("imageName") String imageName){
+		super.getImage(response,imageFolder,imageName);
+	}
+
+	@RequestMapping("/ts/getVideoInfo/{fileId}")
+	@GlobalInterceptor(checkParams = true)
+	public void getImage(HttpServletResponse response, HttpSession session,@PathVariable("fileId") String fileId){
+		SessionWebUserDto webUserDto=getUserInfoFromSession(session);
+		super.getFile(response,fileId, webUserDto.getUserId());
+	}
+
+	@RequestMapping("/getFile/{fileId}")
+	@GlobalInterceptor(checkParams = true)
+	public void getFile(HttpServletResponse response, HttpSession session,@PathVariable("fileId") String fileId){
+		SessionWebUserDto webUserDto=getUserInfoFromSession(session);
+		super.getFile(response,fileId, webUserDto.getUserId());
 	}
 }
