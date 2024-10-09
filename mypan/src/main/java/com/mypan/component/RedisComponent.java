@@ -1,6 +1,7 @@
 package com.mypan.component;
 
 import com.mypan.entity.constants.Constants;
+import com.mypan.entity.dto.DownloadFileDto;
 import com.mypan.entity.dto.SysSettingsDto;
 import com.mypan.entity.dto.UserSpaceDto;
 import com.mypan.entity.po.FileInfo;
@@ -65,5 +66,13 @@ public class RedisComponent {
     public void saveTempFileSize(String userId,String fileId,Long fileSize){
         Long currentSize=getFileTempSize(userId,fileId);
         redisUtils.setex(Constants.redis_key_user_file_temp_size+userId+fileId,currentSize+fileSize,Constants.redis_key_expires_one_hour);
+    }
+
+    public void saveDownloadCode(String code, DownloadFileDto downloadFileDto){
+        redisUtils.setex(Constants.redis_key_download+code,downloadFileDto,Constants.redis_key_expires_5min);
+    }
+
+    public DownloadFileDto getDownloadCode(String code) {
+        return (DownloadFileDto) redisUtils.get(Constants.redis_key_download+code);
     }
 }

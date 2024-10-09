@@ -7,6 +7,7 @@ import com.mypan.entity.dto.UploadResultDto;
 import com.mypan.entity.po.FileInfo;
 import com.mypan.entity.query.FileInfoQuery;
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 import com.mypan.entity.vo.ResponseVO;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -76,7 +78,7 @@ public class FileInfoController extends CommonFileController {
 
 	@RequestMapping("/ts/getVideoInfo/{fileId}")
 	@GlobalInterceptor(checkParams = true)
-	public void getImage(HttpServletResponse response, HttpSession session,@PathVariable("fileId") String fileId){
+	public void getVideo(HttpServletResponse response, HttpSession session,@PathVariable("fileId") String fileId){
 		SessionWebUserDto webUserDto=getUserInfoFromSession(session);
 		super.getFile(response,fileId, webUserDto.getUserId());
 	}
@@ -131,8 +133,17 @@ public class FileInfoController extends CommonFileController {
 		fileInfoQuery.setFilePid(filePid);
 		fileInfoQuery.setFolderType(FileFolderTypeEnums.FOLDER.getType());
 		if(!StringUtils.isEmpty(currentFileIds)){
-			String[] fileArray=currentFileIds.split(",");
-			fileInfoQuery.setExcludeFileIdArray(fileArray);
+			//fileInfoQuery.setExcludeFileIdArray(currentFileIds.split(","));
+			String[] excludeIds = currentFileIds.split(",");
+
+			/*
+			// 加入当前文件夹自身的 ID，确保它不会被排除
+			excludeIds = Arrays.copyOf(excludeIds, excludeIds.length + 1);
+			excludeIds[excludeIds.length - 1] = filePid; // 添加当前文件夹 ID
+			*/
+
+			fileInfoQuery.setExcludeFileIdArray(excludeIds);
+
 		}
 		fileInfoQuery.setDelFlag(FileDelFlag.USING.getFlag());
 		fileInfoQuery.setOrderBy("create_time desc");
@@ -152,4 +163,33 @@ public class FileInfoController extends CommonFileController {
 		return getSuccessResponseVO(null);
 	}
 
+	@RequestMapping("/createDownloadUrl/{fileId}")
+	@GlobalInterceptor(checkParams = true)
+	public ResponseVO createDownloadUrl(HttpSession session,
+									   @VerifyParam(required = true) @PathVariable("fileId") String fileId
+
+	) throws BusinessException {
+		SessionWebUserDto webUserDto=getUserInfoFromSession(session);
+		return super.createDownloadUrl(fileId,webUserDto.getUserId());
+	}
+
+	@RequestMapping("/download/{code}")
+	@GlobalInterceptor(checkParams = true,checkLogin = false)
+	public void download(HttpServletResponse response, HttpServletRequest request,
+							   @VerifyParam(required = true) @PathVariable("code") String code
+
+	) throws Exception {
+		super.download(request,response,code);
+	}
+
+	@RequestMapping("/delFile")
+	@GlobalInterceptor(checkParams = true)
+	public ResponseVO delFile(HttpSession session,
+						 @VerifyParam(required = true) String fileIds
+
+	) throws Exception {
+		SessionWebUserDto webUserDto=getUserInfoFromSession(session);
+		fileInfoService.removeFile2RecycleBatch(webUserDto.getUserId(), fileIds);
+		return getSuccessResponseVO(null);
+	}
 }
