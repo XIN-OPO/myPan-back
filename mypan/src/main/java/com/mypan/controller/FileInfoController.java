@@ -34,7 +34,7 @@ import java.util.List;
  * @Date: 2024/10/06
 */
 @RestController("fileInfoController")
-@RequestMapping("file")
+@RequestMapping("/file")
 public class FileInfoController extends CommonFileController {
 
 	@Resource
@@ -71,7 +71,6 @@ public class FileInfoController extends CommonFileController {
 	}
 
 	@RequestMapping("/getImage/{imageFolder}/{imageName}")
-	@GlobalInterceptor(checkParams = true)
 	public void getImage(HttpServletResponse response, @PathVariable("imageFolder") String imageFolder,@PathVariable("imageName") String imageName){
 		super.getImage(response,imageFolder,imageName);
 	}

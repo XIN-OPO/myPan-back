@@ -98,7 +98,17 @@ public class FileInfo implements Serializable {
 */
 	private Integer delFlag;
 
-	 public void setFileId(String fileId){
+	private String nickName;
+
+	public String getNickName() {
+		return nickName;
+	}
+
+	public void setNickName(String nickName) {
+		this.nickName = nickName;
+	}
+
+	public void setFileId(String fileId){
 		this.fileId=fileId;
 	 }
 	 public String getFileId(){

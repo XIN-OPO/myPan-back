@@ -1,6 +1,7 @@
 package com.mypan.controller;
 
 import com.mypan.entity.constants.Constants;
+import com.mypan.entity.dto.SessionShareDto;
 import com.mypan.entity.dto.SessionWebUserDto;
 import com.mypan.entity.vo.PaginationResultVO;
 import com.mypan.enums.ResponseCodeEnum;
@@ -102,5 +103,9 @@ public class ABaseController{
         resultVO.setPageSize(result.getPageSize());
         resultVO.setTotalCount(result.getTotalCount());
         return resultVO;
+    }
+
+    protected SessionShareDto getSessionShareFromSession(HttpSession session,String shareId){
+        return (SessionShareDto) session.getAttribute(Constants.session_share_key+shareId);
     }
 }

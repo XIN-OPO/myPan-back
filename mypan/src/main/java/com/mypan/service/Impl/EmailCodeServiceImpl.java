@@ -156,7 +156,7 @@ public class EmailCodeServiceImpl implements EmailCodeService {
 			helper.setFrom(appConfig.getSendUserName());
 			helper.setTo(toEmail);
 			SysSettingsDto sysSettingsDto=redisComponent.getSysSettingDto();
-			helper.setSubject(sysSettingsDto.getRegisterMailTitle());
+			helper.setSubject(sysSettingsDto.getRegisterEMailTitle());
 			helper.setText(String.format(sysSettingsDto.getRegisterEmailContent(),code));
 			helper.setSentDate(new Date());
 			javaMailSender.send(message);

@@ -5,8 +5,11 @@ import com.mypan.entity.dto.DownloadFileDto;
 import com.mypan.entity.dto.SysSettingsDto;
 import com.mypan.entity.dto.UserSpaceDto;
 import com.mypan.entity.po.FileInfo;
+import com.mypan.entity.po.UserInfo;
 import com.mypan.entity.query.FileInfoQuery;
+import com.mypan.entity.query.UserInfoQuery;
 import com.mypan.mappers.FileInfoMapper;
+import com.mypan.mappers.UserInfoMapper;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
@@ -18,6 +21,9 @@ public class RedisComponent {
 
     @Resource
     private FileInfoMapper<FileInfo, FileInfoQuery> fileInfoMapper;
+
+    @Resource
+    private UserInfoMapper<UserInfo, UserInfoQuery> userInfoMapper;
 
 
     public SysSettingsDto getSysSettingDto(){
@@ -31,6 +37,16 @@ public class RedisComponent {
     }
     public void saveUserSpaceUse(String userId, UserSpaceDto userSpaceDto){
         redisUtils.setex(Constants.redis_key_user_space_use+userId,userSpaceDto,Constants.redis_key_expires_day);
+    }
+
+    public UserSpaceDto resetUserSpaceUse(String userId){
+        UserSpaceDto userSpaceDto=new UserSpaceDto();
+        Long useSpace=this.fileInfoMapper.selectUseSpace(userId);//查询文件表得使用得容量
+        userSpaceDto.setUseSpace(useSpace);
+        UserInfo userInfo=this.userInfoMapper.selectByUserId(userId);//查询用户表得总容量
+        userSpaceDto.setTotalSpace(userInfo.getTotalSpace());
+        redisUtils.setex(Constants.redis_key_user_space_use+userId,userSpaceDto,Constants.redis_key_expires_day);
+        return userSpaceDto;
     }
 
     public UserSpaceDto getUserSpaceUse(String userId){
@@ -75,4 +91,9 @@ public class RedisComponent {
     public DownloadFileDto getDownloadCode(String code) {
         return (DownloadFileDto) redisUtils.get(Constants.redis_key_download+code);
     }
+    public void savaSysSettingDto(SysSettingsDto sysSettingsDto){
+        redisUtils.set(Constants.redis_key_sys_setting,sysSettingsDto);
+    }
+
+
 }

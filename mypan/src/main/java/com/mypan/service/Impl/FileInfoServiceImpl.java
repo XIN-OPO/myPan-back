@@ -50,7 +50,7 @@ import java.util.stream.Collectors;
 public class FileInfoServiceImpl implements FileInfoService {
 
 	@Resource
-	private FileInfoMapper<FileInfo,FileInfoQuery> fileInfoMapper;
+	private FileInfoMapper<FileInfo,FileInfoQuery>  fileInfoMapper;
 
 	@Resource
 	private RedisComponent redisComponent;
@@ -159,7 +159,7 @@ public class FileInfoServiceImpl implements FileInfoService {
 				infoQuery.setSimplePage(new SimplePage(0, 1));
 				infoQuery.setStatus(FileStatusEnums.USING.getStatus());
 				List<FileInfo> dbFileList = fileInfoMapper.selectList(infoQuery);
-				//秒传
+				//秒传 判断是否已经有了md5
 				if (!dbFileList.isEmpty()) {
 					FileInfo dbFile = dbFileList.get(0);
 					//判断文件大小
@@ -200,10 +200,10 @@ public class FileInfoServiceImpl implements FileInfoService {
 			}
 			File newFile=new File(tempFileFolder.getPath()+"/"+chunkIndex);
 			file.transferTo(newFile);
+			//保存临时大小
+			redisComponent.saveTempFileSize(webUserDto.getUserId(), fileId,file.getSize());
 			if(chunkIndex<chunks-1){
 				resultDto.setStatus(UploadStatusEnums.UPLOADING.getCode());
-				//保存临时大小
-				redisComponent.saveTempFileSize(webUserDto.getUserId(), fileId,file.getSize());
 				return resultDto;
 			}
 			redisComponent.saveTempFileSize(webUserDto.getUserId(), fileId,file.getSize());
@@ -495,16 +495,6 @@ public class FileInfoServiceImpl implements FileInfoService {
 			if(fileInfo==null || !FileDelFlag.USING.getFlag().equals(fileInfo.getDelFlag())){
 				throw new BusinessException(ResponseCodeEnum.CODE_600);
 			}
-
-			// 检查是否存在父级文件夹
-			String parentPid = fileInfo.getFilePid();
-			while (!Constants.zero_str.equals(parentPid)) {
-				FileInfo parentFolder = fileInfoServiceImp.getFileInfoByFileIdAndUserId(parentPid, userId);
-				if (parentFolder != null && parentFolder.getFileId().equals(fileIds)) {
-					throw new BusinessException(ResponseCodeEnum.CODE_601); // 不允许移动到子文件夹
-				}
-				parentPid = parentFolder.getFilePid(); // 向上查找
-			}
 		}
 
 		String[] fileIdArray=fileIds.split(",");
@@ -659,6 +649,79 @@ public class FileInfoServiceImpl implements FileInfoService {
 		UserSpaceDto userSpaceDto= redisComponent.getUserSpaceUse(userId);
 		userSpaceDto.setUseSpace(useSpace);
 		redisComponent.saveUserSpaceUse(userId,userSpaceDto);
+	}
+
+	@Override
+	public void checkRootFilePid(String rootFilePid, String userId,String fileId) throws BusinessException {
+		if(StringUtils.isEmpty(fileId)){
+			throw new BusinessException(ResponseCodeEnum.CODE_600);
+		}
+		if(rootFilePid.equals(fileId)){
+			return;
+		}
+		checkFilePid(rootFilePid,fileId,userId);
+	}
+	private void checkFilePid(String rootFilePid,String fileId,String userId) throws BusinessException {
+		FileInfo fileInfo=fileInfoMapper.selectByFileIdAndUserId(fileId,userId);
+		if(fileInfo==null){
+			throw new BusinessException(ResponseCodeEnum.CODE_600);
+		}
+		if(Constants.zero_str.equals(fileInfo.getFilePid())){
+			throw new BusinessException(ResponseCodeEnum.CODE_600);
+		}
+		if(fileInfo.getFilePid().equals(rootFilePid)){
+			return;
+		}
+		checkFilePid(rootFilePid,fileInfo.getFilePid(),userId);
+	}
+
+	@Override
+	public void saveShare(String shareRootFilePid, String shareFileIds, String myFolderId, String shareUserId, String curUserId) {
+		String[] shareFileIdArray=shareFileIds.split(",");
+		//目标文件列表
+		FileInfoQuery fileInfoQuery=new FileInfoQuery();
+		fileInfoQuery.setUserId(curUserId);
+		fileInfoQuery.setFilePid(myFolderId);
+		List<FileInfo> currentFileList =this.fileInfoMapper.selectList(fileInfoQuery);
+		Map<String,FileInfo> curFileMap=currentFileList.stream().collect(Collectors.toMap(FileInfo::getFileName,Function.identity(),(data1,data2)->data2));
+
+		//选择的文件
+		fileInfoQuery =new FileInfoQuery();
+		fileInfoQuery.setUserId(shareUserId);
+		fileInfoQuery.setFileIdArray(shareFileIdArray);
+		List<FileInfo> shareFileList=this.fileInfoMapper.selectList(fileInfoQuery);
+
+		//重命名选择的文件
+		List<FileInfo> copyFileList =new ArrayList<>();
+		Date curDate=new Date();
+		for(FileInfo item:shareFileList){
+			FileInfo havaFile=curFileMap.get(item.getFileName());
+			if(havaFile!=null) {
+				item.setFileId(StringUtils.rename(item.getFileName()));
+			}
+			findAllSubFile(copyFileList,item,shareUserId,curUserId,curDate,myFolderId);
+		}
+		this.fileInfoMapper.insertBatch(copyFileList);
+
+	}
+	private void findAllSubFile(List<FileInfo> copyFileList,FileInfo fileInfo,String sourceUserId,String currentUserId,Date curDate,String newFilePid){
+		String sourceFileId=fileInfo.getFileId();
+		fileInfo.setCreateTime(curDate);
+		fileInfo.setLastUpdateTime(curDate);
+		fileInfo.setFilePid(newFilePid);
+		fileInfo.setUserId(currentUserId);
+		String newFileId=StringUtils.getRandomString(Constants.length_10);
+		fileInfo.setFileId(newFileId);
+		copyFileList.add(fileInfo);
+		if(FileFolderTypeEnums.FOLDER.getType().equals(fileInfo.getFolderType())){
+			FileInfoQuery fileInfoQuery=new FileInfoQuery();
+			fileInfoQuery.setFilePid(sourceFileId);
+			fileInfoQuery.setUserId(sourceUserId);
+			List<FileInfo> sourceFileList=this.fileInfoMapper.selectList(fileInfoQuery);
+			for(FileInfo item:sourceFileList){
+				findAllSubFile(copyFileList,item,sourceUserId,currentUserId,curDate,newFileId);
+			}
+		}
 	}
 }
 

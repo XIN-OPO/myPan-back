@@ -411,4 +411,23 @@ public class UserInfoServiceImpl implements UserInfoService {
 		}
 		throw new BusinessException("调qq接口获取用户信息异常");
 	}
+
+	@Override
+	@Transactional(rollbackFor = Exception.class)
+	public void updateUserStatus(String userId, Integer status) {
+		UserInfo userInfo=new UserInfo();
+		userInfo.setStatus(status);
+		if(UserStatusEnum.DISABLE.getStatus().equals(status)){
+			userInfo.setUseSpace(0L);
+			fileInfoMapper.delFileByUserId(userId);
+		}
+		userInfoMapper.updateByUserId(userInfo,userId);
+	}
+
+	@Override
+	public void changeUserSpace(String userId, Integer changeSpace) {
+		Long space=changeSpace*Constants.MB;
+		this.userInfoMapper.updateUserSpace(userId,null,space);
+		redisComponent.resetUserSpaceUse(userId);
+	}
 }

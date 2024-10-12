@@ -35,7 +35,7 @@ public interface FileInfoService{
 /**
  *分页查询
 */
-	PaginationResultVO<FileInfo> findListByPage(FileInfoQuery query);
+		PaginationResultVO findListByPage(FileInfoQuery query);
 
 /**
  *新增
@@ -81,4 +81,8 @@ public interface FileInfoService{
 	void recoverFileBatch(String userId,String fileIds);
 
 	void delFileBatch(String userId,String fileIds,Boolean adminOp);
+
+	void checkRootFilePid(String rootFilePid,String userId,String fileId) throws BusinessException;
+
+	void saveShare(String shareRootFilePid,String shareFileIds,String myFolderId,String shareUserId,String curUserId);
 }

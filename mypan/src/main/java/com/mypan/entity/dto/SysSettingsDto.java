@@ -6,16 +6,16 @@ import java.io.Serializable;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class SysSettingsDto implements Serializable {
-    private String registerMailTitle="邮箱验证码";
+    private String registerEMailTitle="邮箱验证码";
     private String registerEmailContent="您好，您的邮箱验证码是:%s,15分钟有效";
     private Integer userInitUseSpace=5;
 
-    public String getRegisterMailTitle() {
-        return registerMailTitle;
+    public String getRegisterEMailTitle() {
+        return registerEMailTitle;
     }
 
-    public void setRegisterMailTitle(String registerMailTitle) {
-        this.registerMailTitle = registerMailTitle;
+    public void setRegisterEMailTitle(String registerEMailTitle) {
+        this.registerEMailTitle = registerEMailTitle;
     }
 
     public String getRegisterEmailContent() {

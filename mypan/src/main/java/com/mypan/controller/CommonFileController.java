@@ -53,12 +53,14 @@ public class CommonFileController extends ABaseController{
     }
 
     protected void getFile(HttpServletResponse response,String fileId,String userId){
-
         String filePath=null;
         if(fileId.endsWith(".ts")){
             String[] tsArray=fileId.split("_");
             String realFileId=tsArray[0];
             FileInfo fileInfo=fileInfoService.getFileInfoByFileIdAndUserId(realFileId,userId);
+            if(null==fileInfo){
+                return;
+            }
             String fileName=fileInfo.getFilePath();
             fileName=StringUtils.getFileNameNoSuffix(fileName)+"/"+fileId;
             filePath=appConfig.getProjectFolder()+Constants.file_folder_file+fileName;
@@ -126,5 +128,7 @@ public class CommonFileController extends ABaseController{
         response.setHeader("Content-Disposition","attachment;filename=\""+fileName+"\"");
         readFile(response,filePath);
     }
+
+
 }
 

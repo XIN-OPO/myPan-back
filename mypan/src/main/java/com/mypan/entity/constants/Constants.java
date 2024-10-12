@@ -23,6 +23,8 @@ public class Constants {
     public static final String redis_key_download="mypan:user:download:";
 
     public static final String session_key="session_key";
+    public static final String session_share_key="session_share_key_";
+
     public static final String file_folder_file="/file/";
     public static final String file_folder_avatar_name="avatar/";
     public static final String file_folder_temp="/temp/";
