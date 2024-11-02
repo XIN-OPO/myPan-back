@@ -142,7 +142,7 @@ public class FileInfoServiceImpl implements FileInfoService {
 									  String fileName, String filePid, String fileMd5,
 									  Integer chunkIndex, Integer chunks) throws BusinessException {
 		UploadResultDto resultDto=new UploadResultDto();
-
+		//就是先将分片存到服务器的临时目录中，等最后一个分片上传完成后，进行分片文件的合并(利用RandomAccessFile
 		Boolean uploadSuccess=true;
 		File tempFileFolder=null;
 		try {
@@ -203,6 +203,7 @@ public class FileInfoServiceImpl implements FileInfoService {
 			//保存临时大小
 			redisComponent.saveTempFileSize(webUserDto.getUserId(), fileId,file.getSize());
 			if(chunkIndex<chunks-1){
+				//小于总分片数，所以需要继续
 				resultDto.setStatus(UploadStatusEnums.UPLOADING.getCode());
 				return resultDto;
 			}
@@ -234,7 +235,7 @@ public class FileInfoServiceImpl implements FileInfoService {
 
 			resultDto.setStatus(UploadStatusEnums.UPLOAD_FINISH.getCode());
 
-			//转码
+			//转码 就是
 			TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
 				@Override
 				public void afterCommit() {

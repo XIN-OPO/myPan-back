@@ -94,6 +94,4 @@ public class RedisComponent {
     public void savaSysSettingDto(SysSettingsDto sysSettingsDto){
         redisUtils.set(Constants.redis_key_sys_setting,sysSettingsDto);
     }
-
-
 }

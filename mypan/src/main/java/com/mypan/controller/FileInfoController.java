@@ -90,7 +90,7 @@ public class FileInfoController extends CommonFileController {
 	}
 
 	//创建文件夹
-	@RequestMapping("/newFoloder")
+	@RequestMapping("/newFolder")
 	@GlobalInterceptor(checkParams = true)
 	public ResponseVO newFoloder(HttpSession session,
 						   @VerifyParam(required = true) String filePid,
