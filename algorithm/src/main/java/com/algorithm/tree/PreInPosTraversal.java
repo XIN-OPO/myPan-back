@@ -88,7 +88,7 @@ public class PreInPosTraversal {
         if(head != null){
             Stack<Node> stack=new Stack<Node>();
             while (!stack.isEmpty() || head != null){
-                if(head!=null){
+                if(head!=null){//一直往左走
                     stack.push(head);
                     head=head.left;
                 }else {
